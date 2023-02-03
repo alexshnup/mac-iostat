@@ -491,7 +491,7 @@ do_phdr()
 	}
 		
 	if (Cflag > 0)
-		(void)printf("                                cpu");
+		(void)printf("                                         cpu");
 
 	if (Uflag > 0)
         (void)printf("      load average\n");
