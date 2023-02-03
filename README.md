@@ -25,7 +25,7 @@ See 'man iostat'
 Example output:
 ---------------
 
-*iostat 1*:
+*xiostat disk0 1*:
 
 ```
                    disk0                                          cpu      load average
