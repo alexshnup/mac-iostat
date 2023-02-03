@@ -151,7 +151,13 @@ struct drivestats {
 	u_int64_t		total_read_bytes;
 	u_int64_t		total_written_bytes;
 	u_int64_t		total_transfers;
+    u_int64_t       total_transfers_read;
+    u_int64_t       total_transfers_written;
 	u_int64_t		total_time;
+    u_int64_t       total_read_time;
+    u_int64_t       total_written_time;
+    u_int64_t       total_percentage;
+    
 };
 
 static struct drivestats drivestat[MAXDRIVES];
@@ -485,10 +491,10 @@ do_phdr()
 	}
 		
 	if (Cflag > 0)
-		(void)printf("      cpu");
+		(void)printf("                                cpu");
 
 	if (Uflag > 0)
-		(void)printf("     load average\n");
+        (void)printf("      load average\n");
 	else
 		(void)printf("\n");
 
@@ -503,7 +509,7 @@ do_phdr()
 				(void)printf(" blk xfr msps ");
 		} else {
 			if (Iflag == 0)
-				printf("     r/s   w/s   KB/t  tps ");
+				printf("     r/s   w/s   KB/t  tps     msps     Rmsps     Wmsps    Load");
 			else
 				printf("    KB/t xfrs   MB ");
 		}
@@ -527,14 +533,20 @@ devstats(int perf_select, long double etime, int havelast)
 	long double transfers_per_second;
 	long double kb_per_transfer, mb_per_second, mb_read_per_second;
 	long double mb_written_per_second;
+    long double out_percent;
 	u_int64_t value;
 	u_int64_t total_bytes, total_transfers, total_blocks, total_time;
+    u_int64_t total_transfers_read, total_transfers_written;
 	u_int64_t total_read_bytes, total_written_bytes;
-	u_int64_t interval_bytes, interval_read_bytes, interval_written_bytes;
+    u_int64_t total_read_time, total_written_time;
+    u_int64_t total_percentage;
+    u_int64_t interval_bytes, interval_read_bytes, interval_written_bytes;
 	u_int64_t interval_transfers, interval_blocks;
-	u_int64_t interval_time;
-	long double interval_mb;
-	long double blocks_per_second, ms_per_transaction;
+    u_int64_t interval_transfers_read, interval_transfers_written;
+	u_int64_t interval_time, interval_read_time, interval_written_time;
+    u_int64_t interval_percentage;
+    long double interval_mb;
+	long double blocks_per_second, ms_per_transaction, ms_per_read_transaction, ms_per_written_transaction;
 	kern_return_t status;
 	int i;
 
@@ -546,10 +558,15 @@ devstats(int perf_select, long double etime, int havelast)
 		 */
 		total_bytes = 0;
 		total_transfers = 0;
+        total_transfers_read = 0;
+        total_transfers_written = 0;
 		total_time = 0;
 		total_read_bytes = 0;
 		total_written_bytes = 0;
-
+        total_read_time = 0;
+        total_written_time = 0;
+        total_percentage = 0;
+        
 		/* get drive properties */
 		status = IORegistryEntryCreateCFProperties(drivestat[i].driver,
 			(CFMutableDictionaryRef *)&properties,
@@ -586,25 +603,31 @@ devstats(int perf_select, long double etime, int havelast)
 				CFSTR(kIOBlockStorageDriverStatisticsReadsKey)))) {
 				CFNumberGetValue(number, kCFNumberSInt64Type, &value);
 				total_transfers += value;
+                total_transfers_read += value;
 			}
 			if ((number = (CFNumberRef)CFDictionaryGetValue(statistics,
 				CFSTR(kIOBlockStorageDriverStatisticsWritesKey)))) {
 				CFNumberGetValue(number, kCFNumberSInt64Type, &value);
 				total_transfers += value;
+                total_transfers_written += value;
 			}
 
 			/*
 			 * Get I/O time.
 			 */
 			if ((number = (CFNumberRef)CFDictionaryGetValue(statistics,
-				CFSTR(kIOBlockStorageDriverStatisticsLatentReadTimeKey)))) {
+				//CFSTR(kIOBlockStorageDriverStatisticsLatentReadTimeKey)))) {
+                CFSTR(kIOBlockStorageDriverStatisticsTotalReadTimeKey)))) {
 				CFNumberGetValue(number, kCFNumberSInt64Type, &value);
 				total_time += value;
+                total_read_time += value;
 			}
 			if ((number = (CFNumberRef)CFDictionaryGetValue(statistics,
-				CFSTR(kIOBlockStorageDriverStatisticsLatentWriteTimeKey)))) {
+				//CFSTR(kIOBlockStorageDriverStatisticsLatentWriteTimeKey)))) {
+                CFSTR(kIOBlockStorageDriverStatisticsTotalWriteTimeKey)))) {
 				CFNumberGetValue(number, kCFNumberSInt64Type, &value);
 				total_time += value;
+                total_written_time += value;
 			}
 
 		}
@@ -620,15 +643,36 @@ devstats(int perf_select, long double etime, int havelast)
 					 drivestat[i].total_written_bytes;
 		interval_transfers = total_transfers 
 			- drivestat[i].total_transfers;
+        interval_transfers_read = total_transfers_read
+            - drivestat[i].total_transfers_read;
+        interval_transfers_written = total_transfers_written
+            - drivestat[i].total_transfers_written;
 		interval_time = total_time - drivestat[i].total_time;
+        interval_read_time = total_read_time -
+                      drivestat[i].total_read_time;
+        interval_written_time = total_written_time -
+                     drivestat[i].total_written_time;
+        
+        
 
+        
+        //interval_percentage = out_percent -
+         //            drivestat[i].total_percentage;
+        
+        
+        
 		/* update running totals, only once for -I */
 		if ((Iflag == 0) || (drivestat[i].total_bytes == 0)) {
 			drivestat[i].total_bytes = total_bytes;
 			drivestat[i].total_read_bytes = total_read_bytes;
 			drivestat[i].total_written_bytes = total_written_bytes;
+            drivestat[i].total_read_time = total_read_time;
+            drivestat[i].total_written_time = total_written_time;
 			drivestat[i].total_transfers = total_transfers;
+            drivestat[i].total_transfers_read = total_transfers_read;
+            drivestat[i].total_transfers_written = total_transfers_written;
 			drivestat[i].total_time = total_time;
+            //drivestat[i].total_percentage = total_percentage;
 		}				
 
 		interval_blocks = interval_bytes / drivestat[i].blocksize;
@@ -647,9 +691,31 @@ devstats(int perf_select, long double etime, int havelast)
 			/ 1024 : 0;
 
 		/* times are in nanoseconds, convert to milliseconds */
+        
+        //ms_per_transaction = interval_time;
 		ms_per_transaction = (interval_transfers > 0) ?
-			((long double)interval_time / interval_transfers) 
-			/ 1000 : 0;
+         ((long double)interval_time / interval_transfers)
+             / 1000 : 0;
+        
+
+        // ms_per_read_transaction = total_read_time;
+        ms_per_read_transaction = (interval_transfers_read > 0) ?
+         ((long double)interval_read_time / interval_transfers_read)
+             / 1000 : 0;
+        //ms_per_written_transaction = total_written_time;
+        ms_per_written_transaction = (interval_transfers_written > 0) ?
+        ((long double)interval_written_time / interval_transfers_written)
+             / 1000 : 0;
+        
+        
+        total_percentage = (interval_transfers > 0) ?
+        ((long double)interval_bytes / interval_transfers) / 1024 : 0;
+        
+        
+        
+        out_percent = (((long double) 100 / 1024)) * (long double)total_percentage;
+        
+        
 
 		if (Kflag)
 			total_blocks = total_blocks * drivestat[i].blocksize 
@@ -672,11 +738,15 @@ devstats(int perf_select, long double etime, int havelast)
 				       ms_per_transaction);
 		} else {
 			if (Iflag == 0)
-				printf("%8.2Lf %6.2Lf %6.2Lf %3.0Lf ",
+				printf("%8.2Lf %6.2Lf %6.2Lf %3.0Lf %8.0Lf %8.0Lf %8.0Lf %8.1Lf ",
 				       mb_read_per_second,
 				       mb_written_per_second,
 				       kb_per_transfer,
-				       transfers_per_second);
+				       transfers_per_second,
+                       ms_per_transaction,
+                       ms_per_read_transaction,
+                       ms_per_written_transaction,
+                       out_percent);
 			else {
 				interval_mb = interval_bytes;
 				interval_mb /= 1024 * 1024;
