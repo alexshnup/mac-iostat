@@ -7,13 +7,15 @@ Based on the official version (system_cmds 550.10) of iostat from Apple, this ve
 
 How to build:
 -------------
-
+```
 make all
 make install
+```
 
 It should be located here:
-
-/usr/sbin/xiostat
+```
+/usr/local/bin/xiostat
+```
 
 How to use:
 -----------
