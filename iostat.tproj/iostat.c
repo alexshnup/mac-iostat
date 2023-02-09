@@ -492,7 +492,7 @@ do_phdr()
 	}
 		
 	if (Cflag > 0)
-		(void)printf("                                         cpu");
+		(void)printf("                                                   cpu");
 
 	if (Uflag > 0)
         (void)printf("      load average\n");
@@ -510,7 +510,7 @@ do_phdr()
 				(void)printf(" blk xfr msps ");
 		} else {
 			if (Iflag == 0)
-				printf("     r/s     w/s     KB/t      tps      mspt     Rmspt    Wmspt   util");
+				printf("     r/s     w/s     KB/t      tps      mspt     Rmspt    Wmspt   util  ");
 			else
 				printf("    KB/t xfrs   MB ");
 		}
@@ -761,7 +761,7 @@ devstats(int perf_select, long double etime, int havelast)
 				interval_mb = interval_bytes;
 				interval_mb /= 1024 * 1024;
 
-				printf(" %7.2Lf %3.1qu %5.2Lf ", 
+				printf("   %7.2Lf %3.1qu %5.2Lf ",
 				       kb_per_transfer,
 				       interval_transfers,
 				       interval_mb);
